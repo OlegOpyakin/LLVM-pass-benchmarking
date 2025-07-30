@@ -22,7 +22,7 @@ The pass handles various IR patterns including code with temporary variables and
 
 ## Project Structure
 
-```
+```t
 LLVM-pass-benchmarking/
 ├── src/
 │   ├── pass.cc                 # Main LLVM pass implementation
@@ -58,6 +58,7 @@ LLVM-pass-benchmarking/
 ```
 
 The test script will:
+
 1. Build the LLVM pass
 2. Run functional correctness tests
 3. Generate assembly comparisons
@@ -70,18 +71,21 @@ All outputs are saved in the `build/` directory by default.
 The pass demonstrates significant improvements:
 
 ### Assembly Reduction
+
 - **With pass**: 8 instructions
 - **Without pass**: 27 instructions  
 - **Reduction**: 19 instructions (70% fewer)
 
 ### Runtime Performance
-- **Speedup**: 4.83x faster execution
-- **Improvement**: 70% reduction in execution time
+
+- **Speedup**: up to 5.5x faster execution
+- **Improvement**: up to 80% reduction in execution time
 - **Test**: 1,000,000 iterations with warmup
 
 ## Examples
 
 ### Input Code
+
 ```c
 int cubic_function(int a, int b) {
     return a * a * a + 3 * a * a * b + 3 * a * b * b + b * b * b;
@@ -91,16 +95,18 @@ int cubic_function(int a, int b) {
 ### LLVM IR Transformation
 
 **Before optimization (27 instructions):**
+
 ```llvm
 %5 = load i32, ptr %3, align 4
 %6 = load i32, ptr %3, align 4
 %7 = mul nsw i32 %5, %6
 %8 = load i32, ptr %3, align 4
 %9 = mul nsw i32 %7, %8
-; ... many more instructions
+; ... more instructions
 ```
 
 **After optimization (3 instructions):**
+
 ```llvm
 %29 = add i32 %0, %1          ; a + b
 %30 = mul i32 %29, %29        ; (a + b)²
@@ -110,6 +116,7 @@ int cubic_function(int a, int b) {
 ### Assembly Output
 
 **Optimized version:**
+
 ```assembly
 add  w9, w0, w1     ; a + b
 mul  w8, w9, w9     ; (a + b)²  
