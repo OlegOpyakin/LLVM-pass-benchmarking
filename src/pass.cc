@@ -18,21 +18,15 @@ namespace {
     int power_B_;
   };
 
-  // New pass manager version
   struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
 
-    // Helper function to look through load instructions to find the original value
     Value* lookThroughLoad(Value *V) {
       if (LoadInst *LI = dyn_cast<LoadInst>(V)) {
-        // For loads from function parameters, we need to track back to the parameter
         if (AllocaInst *AI = dyn_cast<AllocaInst>(LI->getOperand(0))) {
-          // Find the store instruction that initialized this alloca
           for (User *U : AI->users()) {
             if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
-              // Check if this store is to our alloca and is likely the parameter initialization
               if (SI->getOperand(1) == AI) {
                 Value *StoredValue = SI->getOperand(0);
-                // If it's storing a function parameter, return that
                 if (isa<Argument>(StoredValue)) {
                   return StoredValue;
                 }
@@ -48,15 +42,12 @@ namespace {
     bool ExtractADD(Value *V, SmallVector<Value*, 4> &AddVector){
       if(BinaryOperator *op = dyn_cast<BinaryOperator>(V)){
         if(op->getOpcode() == Instruction::Add){
-          // Recursively extract from both operands
           return ExtractADD(op->getOperand(0), AddVector) &&
                  ExtractADD(op->getOperand(1), AddVector);
         }
-        // If it's not an Add operation, treat it as a terminal value
         AddVector.push_back(V);
         return true;
       }
-      // If it's not a BinaryOperator, it's a terminal value
       AddVector.push_back(V);
       return true;
     }
@@ -83,7 +74,6 @@ namespace {
       elem.power_B_ = 0;
 
       for(auto &V: info_vec){
-        // Look through loads to find the actual value
         Value *ActualV = lookThroughLoad(V);
         
         if(ConstantInt *c = dyn_cast<ConstantInt>(ActualV)){
@@ -96,7 +86,6 @@ namespace {
           ++elem.power_B_;
         }
         else{
-          // Also check the original value in case lookThroughLoad didn't find anything
           if(ConstantInt *c = dyn_cast<ConstantInt>(V)){
             elem.coeff_*= c->getSExtValue();
           }
@@ -130,12 +119,10 @@ namespace {
               if(!ExtractMUL(Term, elems_of_multiplication)) continue;
               for(Value *V: elems_of_multiplication){
                 if(!isa<Constant>(V)) {
-                  // Look through loads to find the actual variable
                   Value *ActualV = lookThroughLoad(V);
                   if(!isa<Constant>(ActualV)) {
                     non_const_elems.push_back(ActualV);
                   } else if(!isa<Constant>(V)) {
-                    // If lookThroughLoad returned a constant but original wasn't, use original
                     non_const_elems.push_back(V);
                   }
                 }
@@ -174,17 +161,14 @@ namespace {
 
             if(current != expected) continue;
 
-            // Found a cubic expansion pattern - optimize it!
             IRBuilder<> Builder(&I);
             Value *AddAB = Builder.CreateAdd(A, B, "cubic_a_plus_b");
             Value *ABSquared = Builder.CreateMul(AddAB, AddAB, "cubic_squared");
             Value *ABCube = Builder.CreateMul(ABSquared, AddAB, "cubic_result");
 
-            // Replace all uses of the original add instruction with our optimized version
             I.replaceAllUsesWith(ABCube);
             modified = true;
             
-            // We can only transform one instruction per run to avoid iterator invalidation
             break;
 					} 
         }
@@ -200,7 +184,6 @@ namespace {
 llvm::PassPluginLibraryInfo getSkeletonPassPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "skeleton-pass", "v1.0",
     [](PassBuilder &PB) {
-      // Register for pipeline parsing
       PB.registerPipelineParsingCallback(
           [](StringRef Name, FunctionPassManager &FPM,
           ArrayRef<PassBuilder::PipelineElement>) {
@@ -210,7 +193,6 @@ llvm::PassPluginLibraryInfo getSkeletonPassPluginInfo() {
           }
           return false;
         });
-      // Auto-register the pass to run during optimization
       
       PB.registerPipelineStartEPCallback(
           [](ModulePassManager &MPM, OptimizationLevel OL) {
